@@ -97,26 +97,37 @@ function parseMatches(html) {
 
   if (jsonMatch) {
     try {
-      console.log('Found JSON fixtures data');
-      const fixtures = JSON.parse('[' + jsonMatch[1] + ']');
+      console.log('Found JSON fixtures data, extracting...');
+      const jsonStr = '[' + jsonMatch[1] + ']';
+      console.log('JSON sample:', jsonStr.substring(0, 200));
 
-      fixtures.forEach(fixture => {
-        // Parse fixture dates and check if home match
-        if (fixture.homeTeam && fixture.homeTeam.name === 'Club Brugge') {
-          const date = new Date(fixture.date);
-          if (date > now) {
-            matches.push({
-              id: matchId++,
-              date: date.toISOString().split('T')[0],
-              opponent: fixture.awayTeam?.name || 'Unknown',
-              time: date.getHours().toString().padStart(2, '0') + ':' +
-                    date.getMinutes().toString().padStart(2, '0')
-            });
+      const fixtures = JSON.parse(jsonStr);
+      console.log('Parsed fixtures count:', fixtures.length);
+
+      fixtures.forEach((fixture, idx) => {
+        try {
+          if (fixture.homeTeam && fixture.awayTeam) {
+            const isHome = fixture.homeTeam.name && fixture.homeTeam.name.includes('Brugge');
+            if (isHome) {
+              const date = new Date(fixture.date);
+              if (date > now) {
+                matches.push({
+                  id: matchId++,
+                  date: date.toISOString().split('T')[0],
+                  opponent: fixture.awayTeam.name || 'Unknown',
+                  time: String(date.getHours()).padStart(2, '0') + ':' +
+                        String(date.getMinutes()).padStart(2, '0')
+                });
+              }
+            }
           }
+        } catch (e) {
+          console.log('Fixture error at', idx, ':', e.message);
         }
       });
+      console.log('JSON parsing complete, found', matches.length, 'matches');
     } catch (e) {
-      console.log('JSON parsing failed, trying regex approach');
+      console.log('JSON parse error:', e.message);
     }
   }
 
