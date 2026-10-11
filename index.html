@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Club is Life">
+  <meta name="theme-color" content="#003d70">
+  <title>Club is Life</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+
+  <!-- PWA Icons -->
+  <link rel="apple-touch-icon" id="apple-icon" href="">
+  <link rel="icon" id="favicon" href="">
+
+  <style>
+    :root {
+      --cb-blue-dark: #003d70;
+      --cb-blue-light: #004687;
+      --cb-yellow: #ffc72c;
+      --cb-white: #ffffff;
+      --cb-light-gray: #f8f8f8;
+      --cb-dark-gray: #2a2a2a;
+      --cb-text: #1a1a1a;
+      --cb-text-dim: #666666;
+      --cb-border: #e0e0e0;
+      --radius: 12px;
+      --shadow: 0 2px 16px rgba(0, 61, 112, 0.12);
+      --shadow-hover: 0 8px 24px rgba(0, 61, 112, 0.2);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(180deg, var(--cb-light-gray) 0%, #ffffff 100%);
+      color: var(--cb-text);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ---- SETUP SCREEN ---- */
+    #setup-screen {
+      position: fixed; inset: 0; z-index: 100;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 24px;
+      background: linear-gradient(135deg, var(--cb-blue-dark) 0%, var(--cb-blue-light) 100%);
+    }
+    #setup-screen::before {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 50%, rgba(255, 199, 44, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 199, 44, 0.05) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    #setup-screen > * { position: relative; z-index: 1; }
+
+    .setup-logo { font-size: 72px; margin-bottom: 24px; animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+    #setup-screen h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.8rem; font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--cb-white);
+      letter-spacing: -0.02em;
+    }
+    #setup-screen p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1rem;
+      margin-bottom: 48px;
+      text-align: center;
+      max-width: 320px;
+      line-height: 1.6;
+    }
+
+    .setup-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 199, 44, 0.9);
+      align-self: flex-start;
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 8px;
+    }
+    .setup-input {
+      width: 100%; max-width: 320px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.95);
+      border: none;
+      border-radius: 8px;
+      color: var(--cb-text);
+      font-family: 'Rubik', sans-serif;
+      font-size: 1rem;
+      outline: none;
+      transition: all 0.3s;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .setup-input:focus {
+      box-shadow: 0 0 0 3px rgba(255, 199, 44, 0.3), 0 4px 12px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .btn-primary {
+      width: 100%; max-width: 320px;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--cb-yellow) 0%, #ffb81c 100%);
+      border: none;
+      border-radius: 8px;
+      color: var(--cb-blue-dark);
+      font-family: 'Rubik', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 6px 20px rgba(255, 199, 44, 0.4);
+      text-transform: uppercase;
+    }
+    .btn-primary:active {
+      opacity: 0.9;
+      transform: scale(0.98);
+    }
+    .btn-primary:disabled {
+      opacity: 0.5;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* ---- MAIN APP ---- */
+    #app { display: none; position: relative; z-index: 1; padding-bottom: 90px; }
+
+    .header {
+      background: linear-gradient(135deg, var(--cb-blue-dark) 0%, var(--cb-blue-light) 100%);
+      padding: 40px 20px 32px;
+      color: var(--cb-white);
+      position: relative;
+      overflow: hidden;
+    }
+    .header::after {
+      content: ''; position: absolute; top: 0; right: 0;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(255, 199, 44, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .header-content { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: flex-end; }
+    .header-left { flex: 1; }
+    .header-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.01em;
+    }
+    .header-subtitle {
+      font-size: 0.9rem;
+      opacity: 0.85;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+
+    .header-user {
+      font-size: 0.8rem;
+      text-align: right;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    .header-user strong {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      opacity: 1;
+    }
+
+    /* ---- TABS ---- */
+    .tab-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--cb-white);
+      border-top: 2px solid var(--cb-blue-dark);
+      display: flex;
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+      z-index: 50;
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 0;
+      color: var(--cb-text-dim);
+      font-family: 'Rubik', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+
+    .tab-btn .tab-icon {
+      font-size: 24px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      color: var(--cb-blue-dark);
+    }
+    .tab-btn.active .tab-icon {
+      transform: scale(1.2);
+      filter: drop-shadow(0 2px 4px rgba(0, 61, 112, 0.2));
+    }
+
+    /* ---- SCREENS ---- */
+    .screen { display: none; padding: 16px 16px 20px 16px; }
+    .screen.active { display: block; }
+
+    /* ---- UPCOMING MATCHES ---- */
+    .match-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+
+    .match-card {
+      background: var(--cb-white);
+      border-radius: var(--radius);
+      padding: 18px;
+      border: 2px solid transparent;
+      border-left: 6px solid var(--cb-yellow);
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+      box-shadow: var(--shadow);
+    }
+
+    .match-card:active {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .match-card.past {
+      border-left-color: var(--cb-border);
+      opacity: 0.75;
+    }
+
+    .match-header {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+
+    .match-date {
+      display: flex;
+      flex-direction: column;
+      min-width: 70px;
+      background: linear-gradient(135deg, var(--cb-blue-dark), var(--cb-blue-light));
+      color: var(--cb-white);
+      padding: 10px 12px;
+      border-radius: 8px;
+      align-items: center;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .match-date-value {
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    .match-time {
+      font-size: 0.9rem;
+      margin-top: 4px;
+      opacity: 0.9;
+      font-weight: 600;
+    }
+
+    .match-vs {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+
+    .team-name {
+      font-weight: 700;
+      color: var(--cb-blue-dark);
+      font-size: 1.1rem;
+      letter-spacing: 0.02em;
+    }
+
+    .vs-text {
+      color: var(--cb-text-dim);
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .opponent-name {
+      color: var(--cb-text);
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .attendees-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--cb-border);
+    }
+
+    .attendees-label {
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--cb-blue-dark);
+      font-size: 0.95rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .attendee-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .attendee-select {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .attendee-select label {
+      font-size: 0.8rem;
+      color: var(--cb-text-dim);
+      margin-bottom: 6px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+
+    .attendee-select select {
+      padding: 10px 12px;
+      border: 2px solid var(--cb-border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      background-color: var(--cb-white);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Rubik', sans-serif;
+    }
+
+    .attendee-select select:hover {
+      border-color: var(--cb-yellow);
+    }
+
+    .attendee-select select:focus {
+      outline: none;
+      border-color: var(--cb-blue-dark);
+      box-shadow: 0 0 0 3px rgba(0, 61, 112, 0.1);
+    }
+
+    .attendees-summary {
+      background: linear-gradient(135deg, #dcf5e3 0%, #e8f5e9 100%);
+      color: #1b5e20;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      border-left: 4px solid #4caf50;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+    }
+
+    .past-attendees {
+      padding: 10px 0;
+      font-size: 0.95rem;
+    }
+
+    .past-attendees-label {
+      color: var(--cb-text-dim);
+      font-weight: 600;
+    }
+
+    .past-attendees-names {
+      color: var(--cb-text);
+      margin-left: 8px;
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--cb-text-dim);
+      padding: 60px 20px;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.6;
+    }
+
+    /* ---- SETTINGS ---- */
+    .settings-section {
+      margin-bottom: 28px;
+    }
+
+    .settings-section h3 {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cb-blue-dark);
+      margin-bottom: 14px;
+    }
+
+    .settings-row {
+      background: var(--cb-white);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 2px solid var(--cb-border);
+      transition: all 0.2s;
+      box-shadow: var(--shadow);
+    }
+
+    .settings-row:hover {
+      border-color: var(--cb-yellow);
+    }
+
+    .settings-row-label {
+      font-weight: 600;
+      color: var(--cb-text);
+    }
+
+    .settings-row-value {
+      font-size: 0.9rem;
+      color: var(--cb-text-dim);
+      text-align: right;
+      font-weight: 500;
+    }
+
+    .btn-secondary {
+      padding: 12px 16px;
+      background: var(--cb-white);
+      border: 2px solid var(--cb-blue-dark);
+      border-radius: var(--radius);
+      color: var(--cb-blue-dark);
+      font-family: 'Rubik', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+    }
+
+    .btn-secondary:active {
+      background: var(--cb-blue-dark);
+      color: var(--cb-white);
+    }
+
+    /* ---- TOAST ---- */
+    #toast {
+      position: fixed;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--cb-blue-dark);
+      color: white;
+      padding: 14px 24px;
+      border-radius: 8px;
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    #toast.show { opacity: 1; }
+
+    /* ---- LOADING ---- */
+    #loading {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, var(--cb-blue-dark), var(--cb-blue-light));
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #loading.hidden { display: none; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 600px) {
+      #setup-screen h1 { font-size: 2.2rem; }
+      .header-title { font-size: 1.8rem; }
+      .match-header { flex-direction: column; }
+      .attendee-inputs { grid-template-columns: 1fr; }
+      .match-vs { flex-direction: column; align-items: flex-start; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading"></div>
+
+  <!-- SETUP SCREEN -->
+  <div id="setup-screen" class="hidden">
+    <div class="setup-logo">🔵🟨</div>
+    <h1>Club is Life</h1>
+    <p>Volg elke thuis­wedstrijd van Club Brugge en deel je enthousiasme met dierbaren</p>
+    <div class="setup-label">Hoe heet je?</div>
+    <input type="text" id="setup-name" class="setup-input" placeholder="Je voornaam">
+    <button id="setup-btn" class="btn-primary" disabled>⚽ Starten</button>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app">
+    <div class="header">
+      <div class="header-content">
+        <div class="header-left">
+          <div class="header-title">Club is Life</div>
+          <div class="header-subtitle">⚽ Club Brugge Thuiswedstrijden</div>
+        </div>
+        <div class="header-user">
+          Welkom<br><strong id="display-name"></strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPCOMING MATCHES SCREEN -->
+    <div id="screen-upcoming" class="screen active">
+      <div id="log-scroll-area">
+        <div class="match-cards" id="upcoming-matches"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY SCREEN -->
+    <div id="screen-history" class="screen">
+      <div id="history-content"></div>
+    </div>
+
+    <!-- SETTINGS SCREEN -->
+    <div id="screen-settings" class="screen">
+      <div class="settings-section">
+        <h3>Mijn Instellingen</h3>
+        <div class="settings-row">
+          <div class="settings-row-label">Naam</div>
+          <input type="text" id="settings-name" class="setup-input" style="max-width: 200px; padding: 8px;">
+        </div>
+        <button class="btn-secondary" style="width: 100%; margin-top: 8px;" onclick="window.saveName()">💾 Opslaan</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Over</h3>
+        <div class="settings-row">
+          <div class="settings-row-label">Data Sync</div>
+          <div class="settings-row-value">Firebase / Firestore</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">Versie</div>
+          <div class="settings-row-value">1.0.0</div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">Laatst bijgewerkt</div>
+          <div class="settings-row-value" id="last-updated">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="window.switchTab('upcoming', this)">
+        <span class="tab-icon">📅</span>
+        <span>Aankomend</span>
+      </button>
+      <button class="tab-btn" onclick="window.switchTab('history', this)">
+        <span class="tab-icon">📊</span>
+        <span>Geschiedenis</span>
+      </button>
+      <button class="tab-btn" onclick="window.switchTab('settings', this)">
+        <span class="tab-icon">⚙️</span>
+        <span>Instellingen</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, query, orderBy, limit, onSnapshot, where, getDocs, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCTieb8SkEpI14Jbvn4dCbyImMUHmJ7b3M",
+      authDomain: "club-is-life-f61ee.firebaseapp.com",
+      projectId: "club-is-life-f61ee",
+      storageBucket: "club-is-life-f61ee.firebasestorage.app",
+      messagingSenderId: "428945842776",
+      appId: "1:428945842776:web:cebcd8b1fa5e3ff81c602d",
+      measurementId: "G-WL3M3T8WL9"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window._db = db;
+    window._collection = collection;
+    window._addDoc = addDoc;
+    window._deleteDoc = deleteDoc;
+    window._doc = doc;
+    window._query = query;
+    window._orderBy = orderBy;
+    window._limit = limit;
+    window._onSnapshot = onSnapshot;
+    window._where = where;
+    window._getDocs = getDocs;
+    window._updateDoc = updateDoc;
+    window._setDoc = setDoc;
+    window.initApp();
+  </script>
+
+  <script>
+    // Pre-define initApp so Firebase module can call it
+    window.initApp = function() {};
+
+    // Matches data
+    // Fallback matches (if API fails)
+    const FALLBACK_MATCHES = [
+      { id: 1, date: '2026-08-23', opponent: 'CERCLE BRUGGE', time: '18:30' },
+      { id: 2, date: '2026-09-13', opponent: 'ROYAL ANTWERP FC', time: '13:30' },
+      { id: 3, date: '2026-09-20', opponent: 'KRC GENK', time: '18:30' },
+      { id: 4, date: '2026-10-17', opponent: 'FCV DENDER EH', time: '20:00' },
+      { id: 5, date: '2026-10-24', opponent: 'SINT-TRUIDEN', time: '20:00' },
+      { id: 6, date: '2026-11-07', opponent: 'RSC ANDERLECHT', time: '20:00' },
+      { id: 7, date: '2026-11-28', opponent: 'KAA GENT', time: '18:30' },
+    ];
+
+    let MATCHES = FALLBACK_MATCHES;
+
+    const ATTENDEE_OPTIONS = ['Jij', 'Je zoon', 'Je dochter', 'Je vrouw', 'Je vader', 'Vriend'];
+
+    let userName = (function() {
+      try {
+        return localStorage.getItem('clubIsLifeName') || '';
+      } catch (e) {
+        return sessionStorage.getItem('clubIsLifeName') || '';
+      }
+    })();
+    let allMatches = [];
+    let attendeesMap = {};
+
+    window.initApp = function() {
+      document.getElementById('loading').classList.add('hidden');
+      if (!userName) {
+        document.getElementById('setup-screen').classList.remove('hidden');
+        setupListeners();
+      } else {
+        showApp();
+      }
+    };
+
+    // Redefine initApp after all dependencies are ready
+    function setupListeners() {
+      const input = document.getElementById('setup-name');
+      const btn = document.getElementById('setup-btn');
+      input.addEventListener('input', () => { btn.disabled = !input.value.trim(); });
+      btn.addEventListener('click', doLogin);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && !btn.disabled) doLogin(); });
+    }
+
+    function doLogin() {
+      const name = document.getElementById('setup-name').value.trim();
+      if (name) {
+        userName = name;
+        try {
+          localStorage.setItem('clubIsLifeName', name);
+        } catch (e) {
+          sessionStorage.setItem('clubIsLifeName', name);
+        }
+        document.getElementById('setup-screen').classList.add('hidden');
+        showApp();
+      }
+    }
+
+    function showApp() {
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('display-name').textContent = userName;
+      document.getElementById('settings-name').value = userName;
+      subscribeToMatches();
+    }
+
+    function subscribeToMatches() {
+      // Fetch live matches from Netlify function
+      fetchLiveMatches();
+
+      // Also listen to Firebase for attendee changes
+      const q = window._query(
+        window._collection(window._db, 'matches'),
+        window._orderBy('date', 'asc')
+      );
+      window._onSnapshot(q, snapshot => {
+        attendeesMap = {};
+        snapshot.docs.forEach(doc => {
+          attendeesMap[doc.id] = doc.data();
+        });
+        updateUpcomingScreen();
+        updateHistoryScreen();
+        document.getElementById('last-updated').textContent = 'Net bijgewerkt ✓';
+      }, err => showToast('⚠️ Sync fout: ' + err.message));
+    }
+
+    async function fetchLiveMatches() {
+      try {
+        console.log('🔄 Fetching live matches from Netlify Function...');
+        const response = await fetch('/.netlify/functions/get-matches');
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const data = await response.json();
+        console.log('📋 API response:', data);
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        if (data.matches && data.matches.length > 0) {
+          MATCHES = data.matches;
+          updateUpcomingScreen();
+          updateHistoryScreen();
+          console.log('✅ Live matches loaded from clubbrugge.be:', data.count, 'matches');
+        } else {
+          console.log('⚠️ No matches in response, using fallback');
+        }
+      } catch (err) {
+        console.log('⚠️ Could not fetch live matches:', err.message);
+        console.log('Using fallback matches');
+      }
+    }
+
+    function parseClubBruggeMatches(html) {
+      const matches = [];
+      let matchId = 1;
+      const now = new Date();
+      const currentYear = now.getFullYear();
+
+      // Pattern: date/time followed by "CLUB BRUGGE VS opponent"
+      const regex = /(\d{1,2})\/(\d{2})\s+(\d{1,2})u(\d{2})\s+(?:.*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?:\s|<)/gi;
+
+      let match;
+      while ((match = regex.exec(html)) !== null) {
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        const hour = parseInt(match[3]);
+        const minute = parseInt(match[4]);
+        const opponent = match[5].trim();
+
+        const date = new Date(currentYear, month - 1, day);
+        if (date < now) {
+          date.setFullYear(currentYear + 1);
+        }
+
+        const dateStr = date.toISOString().split('T')[0];
+        const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+        matches.push({
+          id: matchId++,
+          date: dateStr,
+          opponent: opponent.toUpperCase(),
+          time: timeStr
+        });
+      }
+
+      return matches;
+    }
+
+    function updateUpcomingScreen() {
+      const today = new Date('2026-10-11');
+      const upcoming = MATCHES.filter(m => new Date(m.date) > today);
+
+      const html = upcoming.length === 0
+        ? '<div class="empty-state"><div class="empty-state-icon">📭</div>Geen aankomende wedstrijden</div>'
+        : upcoming.map(match => {
+            const attendees = attendeesMap[match.id] || {};
+            const first = attendees.first || '';
+            const second = attendees.second || '';
+            const filled = first && second;
+
+            return `
+              <div class="match-card upcoming">
+                <div class="match-header">
+                  <div class="match-date">
+                    <span class="match-date-value">${formatDate(match.date)}</span>
+                    <span class="match-time">${match.time}</span>
+                  </div>
+                  <div class="match-vs">
+                    <span class="team-name">CLUB BRUGGE</span>
+                    <span class="vs-text">VS</span>
+                    <span class="opponent-name">${match.opponent}</span>
+                  </div>
+                </div>
+                <div class="attendees-section">
+                  <p class="attendees-label">Wie gaan mee?</p>
+                  <div class="attendee-inputs">
+                    <div class="attendee-select">
+                      <label>1e Bijwoner</label>
+                      <select onchange="window.setAttendee(${match.id}, 'first', this.value)">
+                        <option value="">-- Selecteer --</option>
+                        ${ATTENDEE_OPTIONS.map(opt => `<option value="${opt}" ${first === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                      </select>
+                    </div>
+                    <div class="attendee-select">
+                      <label>2e Bijwoner</label>
+                      <select onchange="window.setAttendee(${match.id}, 'second', this.value)">
+                        <option value="">-- Selecteer --</option>
+                        ${ATTENDEE_OPTIONS.map(opt => `<option value="${opt}" ${second === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                      </select>
+                    </div>
+                  </div>
+                  ${filled ? `<div class="attendees-summary">✅ ${first} en ${second}</div>` : ''}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+      document.getElementById('upcoming-matches').innerHTML = html;
+    }
+
+    function updateHistoryScreen() {
+      const today = new Date('2026-10-11');
+      const past = MATCHES.filter(m => new Date(m.date) <= today);
+
+      const html = past.length === 0
+        ? '<div class="empty-state"><div class="empty-state-icon">⏰</div>Nog geen gespeelde wedstrijden</div>'
+        : past.map(match => {
+            const attendees = attendeesMap[match.id] || {};
+            const first = attendees.first || '';
+            const second = attendees.second || '';
+
+            return `
+              <div class="match-card past">
+                <div class="match-header">
+                  <div class="match-date">
+                    <span class="match-date-value">${formatDate(match.date)}</span>
+                  </div>
+                  <div class="match-vs">
+                    <span class="team-name">CLUB BRUGGE</span>
+                    <span class="vs-text">VS</span>
+                    <span class="opponent-name">${match.opponent}</span>
+                  </div>
+                </div>
+                <div class="past-attendees">
+                  <span class="past-attendees-label">Bijwoners:</span>
+                  <span class="past-attendees-names">${first && second ? `${first} & ${second}` : first ? first : second ? second : 'Geen geregistreerd'}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+      document.getElementById('history-content').innerHTML = html;
+    }
+
+    window.setAttendee = async function(matchId, position, value) {
+      const btn = event.target;
+      btn.disabled = true;
+      try {
+        const docRef = window._doc(window._collection(window._db, 'matches'), String(matchId));
+        const currentData = attendeesMap[matchId] || {};
+        const newData = { ...currentData, [position]: value };
+        await window._setDoc(docRef, newData, { merge: true });
+        showToast('✅ Opgeslagen!');
+      } catch (err) {
+        showToast('⚠️ Fout: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    window.switchTab = function(tab, btn) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`screen-${tab}`).classList.add('active');
+      btn.classList.add('active');
+    };
+
+    window.saveName = function() {
+      const name = document.getElementById('settings-name').value.trim();
+      if (name) {
+        userName = name;
+        try {
+          localStorage.setItem('clubIsLifeName', name);
+        } catch (e) {
+          sessionStorage.setItem('clubIsLifeName', name);
+        }
+        document.getElementById('display-name').textContent = name;
+        showToast('✅ Naam opgeslagen!');
+      }
+    };
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr);
+      const days = ['zon', 'maa', 'din', 'woe', 'don', 'vri', 'zat'];
+      const months = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+      return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+  </script>
+</body>
+</html>
