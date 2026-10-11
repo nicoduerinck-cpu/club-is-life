@@ -9,6 +9,16 @@ exports.handler = async (event, context) => {
       throw new Error('Invalid HTML response');
     }
 
+    // Check if we got the security checkpoint instead of real content
+    if (html.includes('Vercel Security Checkpoint') || html.includes('Security Challenge')) {
+      console.error('Got security checkpoint page instead of real content');
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Website blocked our request - security checkpoint' })
+      };
+    }
+
     const matches = parseMatches(html);
     console.log(`Parsed ${matches.length} matches`);
 
@@ -38,7 +48,17 @@ function fetchPage(url) {
   return new Promise((resolve, reject) => {
     const options = {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Pragma': 'no-cache'
       }
     };
 
@@ -65,12 +85,7 @@ function parseMatches(html) {
   const currentYear = now.getFullYear();
 
   // Try to find "CLUB BRUGGE VS" patterns with date/time
-  // Looking for: DD/MM HH:MM ... CLUB BRUGGE VS opponent
-
-  // Pattern 1: DD/MM HHuMM format (from earlier observation)
   const pattern1 = /(\d{1,2})\/(\d{2})\s+(\d{1,2})u(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=\s+TICKETS|\s+VERSLAG|<)/gi;
-
-  // Pattern 2: DD/MM HH:MM format
   const pattern2 = /(\d{1,2})\/(\d{2})\s+(\d{2}):(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=<)/gi;
 
   const patterns = [pattern1, pattern2];
@@ -113,14 +128,12 @@ function parseMatches(html) {
   }
 
   if (matches.length === 0) {
-    // Log more details for debugging
     const sampleStart = html.indexOf('CLUB BRUGGE');
     if (sampleStart > -1) {
       const sample = html.substring(Math.max(0, sampleStart - 200), sampleStart + 300);
       console.log('Sample around "CLUB BRUGGE":', sample);
     } else {
       console.log('CLUB BRUGGE not found in HTML');
-      console.log('First 1000 chars:', html.substring(0, 1000));
     }
   }
 
