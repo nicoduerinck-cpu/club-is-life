@@ -1,25 +1,17 @@
 const https = require('https');
+const zlib = require('zlib');
 
 exports.handler = async (event, context) => {
   try {
-    console.log('Fetching Club Brugge matches...');
-    // Try FotMob as alternative source
+    console.log('Fetching FotMob Club Brugge matches...');
     const html = await fetchPage('https://www.fotmob.com/teams/8342/fixtures/club-brugge');
 
-    if (!html || html.length < 1000) {
+    if (!html || html.length < 5000) {
+      console.error('Invalid or empty response, length:', html.length);
       throw new Error('Invalid HTML response');
     }
 
-    // Check if we got blocked
-    if (html.includes('Vercel Security Checkpoint') || html.includes('Security Challenge') || html.length < 5000) {
-      console.error('Got security checkpoint or incomplete page');
-      console.log('HTML length:', html.length);
-      return {
-        statusCode: 403,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Website blocked our request' })
-      };
-    }
+    console.log('HTML received, length:', html.length);
 
     const matches = parseMatches(html);
     console.log(`Parsed ${matches.length} matches`);
@@ -33,7 +25,8 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         matches,
         count: matches.length,
-        lastFetch: new Date().toISOString()
+        lastFetch: new Date().toISOString(),
+        source: 'FotMob'
       })
     };
   } catch (error) {
@@ -52,27 +45,39 @@ function fetchPage(url) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'none',
         'Pragma': 'no-cache'
       }
     };
 
     https.get(url, options, (res) => {
-      let data = '';
+      let chunks = [];
 
       res.on('data', chunk => {
-        data += chunk;
+        chunks.push(chunk);
       });
 
       res.on('end', () => {
-        resolve(data);
+        try {
+          let buffer = Buffer.concat(chunks);
+
+          // Handle gzip compression
+          if (res.headers['content-encoding'] === 'gzip') {
+            zlib.gunzip(buffer, (err, decompressed) => {
+              if (err) {
+                reject(new Error(`Decompression failed: ${err.message}`));
+              } else {
+                resolve(decompressed.toString('utf-8'));
+              }
+            });
+          } else {
+            resolve(buffer.toString('utf-8'));
+          }
+        } catch (e) {
+          reject(new Error(`Buffer processing failed: ${e.message}`));
+        }
       });
     }).on('error', (err) => {
       reject(new Error(`Failed to fetch: ${err.message}`));
@@ -86,52 +91,61 @@ function parseMatches(html) {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  // Try to find "CLUB BRUGGE VS" patterns with date/time
-  const pattern1 = /(\d{1,2})\/(\d{2})\s+(\d{1,2})u(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=\s+TICKETS|\s+VERSLAG|<)/gi;
-  const pattern2 = /(\d{1,2})\/(\d{2})\s+(\d{2}):(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=<)/gi;
+  // FotMob likely has JSON data embedded in HTML
+  // Look for fixture data in JSON format
+  const jsonMatch = html.match(/"fixtures":\s*\[(.*?)\]/s);
 
-  const patterns = [pattern1, pattern2];
+  if (jsonMatch) {
+    try {
+      console.log('Found JSON fixtures data');
+      const fixtures = JSON.parse('[' + jsonMatch[1] + ']');
 
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(html)) !== null) {
-      try {
-        const day = parseInt(match[1]);
-        const month = parseInt(match[2]);
-        const hour = parseInt(match[3]);
-        const minute = parseInt(match[4]);
-        const opponent = match[5].trim();
-
-        if (!opponent || opponent.length < 3 || opponent.includes('CLUB')) continue;
-
-        const date = new Date(currentYear, month - 1, day);
-        if (date < now) {
-          date.setFullYear(currentYear + 1);
+      fixtures.forEach(fixture => {
+        // Parse fixture dates and check if home match
+        if (fixture.homeTeam && fixture.homeTeam.name === 'Club Brugge') {
+          const date = new Date(fixture.date);
+          if (date > now) {
+            matches.push({
+              id: matchId++,
+              date: date.toISOString().split('T')[0],
+              opponent: fixture.awayTeam?.name || 'Unknown',
+              time: date.getHours().toString().padStart(2, '0') + ':' +
+                    date.getMinutes().toString().padStart(2, '0')
+            });
+          }
         }
-
-        const dateStr = date.toISOString().split('T')[0];
-        const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-
-        matches.push({
-          id: matchId++,
-          date: dateStr,
-          opponent: opponent.toUpperCase(),
-          time: timeStr
-        });
-      } catch (e) {
-        console.error('Parse error:', e.message);
-      }
-    }
-
-    if (matches.length > 0) {
-      console.log(`Pattern matched, found ${matches.length} matches`);
-      break;
+      });
+    } catch (e) {
+      console.log('JSON parsing failed, trying regex approach');
     }
   }
 
+  // Fallback: regex patterns
   if (matches.length === 0) {
-    console.log('No matches found');
-    console.log('First 2000 chars:', html.substring(0, 2000));
+    const pattern = /Club Brugge.*?(\d{2})\/(\d{2}).*?(\d{2}):(\d{2})/gi;
+    let match;
+
+    while ((match = pattern.exec(html)) !== null) {
+      const day = parseInt(match[1]);
+      const month = parseInt(match[2]);
+      const hour = parseInt(match[3]);
+      const minute = parseInt(match[4]);
+
+      const date = new Date(currentYear, month - 1, day, hour, minute);
+      if (date > now) {
+        matches.push({
+          id: matchId++,
+          date: date.toISOString().split('T')[0],
+          opponent: 'TBD',
+          time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+        });
+      }
+    }
+  }
+
+  console.log(`Final: ${matches.length} matches parsed`);
+  if (matches.length === 0) {
+    console.log('HTML preview:', html.substring(0, 1000));
   }
 
   return matches;
