@@ -3,19 +3,21 @@ const https = require('https');
 exports.handler = async (event, context) => {
   try {
     console.log('Fetching Club Brugge matches...');
-    const html = await fetchPage('https://www.clubbrugge.be/nl/competition/a-kern/all-matches');
+    // Try FotMob as alternative source
+    const html = await fetchPage('https://www.fotmob.com/teams/8342/fixtures/club-brugge');
 
     if (!html || html.length < 1000) {
       throw new Error('Invalid HTML response');
     }
 
-    // Check if we got the security checkpoint instead of real content
-    if (html.includes('Vercel Security Checkpoint') || html.includes('Security Challenge')) {
-      console.error('Got security checkpoint page instead of real content');
+    // Check if we got blocked
+    if (html.includes('Vercel Security Checkpoint') || html.includes('Security Challenge') || html.length < 5000) {
+      console.error('Got security checkpoint or incomplete page');
+      console.log('HTML length:', html.length);
       return {
         statusCode: 403,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Website blocked our request - security checkpoint' })
+        body: JSON.stringify({ error: 'Website blocked our request' })
       };
     }
 
@@ -128,13 +130,8 @@ function parseMatches(html) {
   }
 
   if (matches.length === 0) {
-    const sampleStart = html.indexOf('CLUB BRUGGE');
-    if (sampleStart > -1) {
-      const sample = html.substring(Math.max(0, sampleStart - 200), sampleStart + 300);
-      console.log('Sample around "CLUB BRUGGE":', sample);
-    } else {
-      console.log('CLUB BRUGGE not found in HTML');
-    }
+    console.log('No matches found');
+    console.log('First 2000 chars:', html.substring(0, 2000));
   }
 
   return matches;
