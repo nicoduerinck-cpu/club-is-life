@@ -64,36 +64,56 @@ function parseMatches(html) {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  // Search for match patterns: date time ... CLUB BRUGGE VS opponent
-  // Pattern: DD/MM HH:MM or DDuHH format
-  const pattern = /(\d{1,2})\/(\d{2})\s+(\d{1,2})(?:u|:)(\d{2})[^]*?CLUB\s+BRUGGE\s+VS\s+([A-Z\s]+?)(?=\s+TICKETS|\s+VERSLAG|<|$)/gi;
+  // Try to find "CLUB BRUGGE VS" patterns with date/time
+  // Looking for: DD/MM HH:MM ... CLUB BRUGGE VS opponent
 
-  let match;
+  // Pattern 1: DD/MM HHuMM format (from earlier observation)
+  const pattern1 = /(\d{1,2})\/(\d{2})\s+(\d{1,2})u(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=\s+TICKETS|\s+VERSLAG|<)/gi;
 
-  while ((match = pattern.exec(html)) !== null) {
-    const day = parseInt(match[1]);
-    const month = parseInt(match[2]);
-    const hour = parseInt(match[3]);
-    const minute = parseInt(match[4]);
-    const opponent = match[5].trim();
+  // Pattern 2: DD/MM HH:MM format
+  const pattern2 = /(\d{1,2})\/(\d{2})\s+(\d{2}):(\d{2})\s+(?:[^]*?)CLUB\s+BRUGGE\s+VS\s+([^<\n]+?)(?=<)/gi;
 
-    // Skip if opponent is empty or looks like junk
-    if (!opponent || opponent.length < 3) continue;
+  const patterns = [pattern1, pattern2];
 
-    const date = new Date(currentYear, month - 1, day);
-    if (date < now) {
-      date.setFullYear(currentYear + 1);
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      try {
+        const day = parseInt(match[1]);
+        const month = parseInt(match[2]);
+        const hour = parseInt(match[3]);
+        const minute = parseInt(match[4]);
+        const opponent = match[5].trim();
+
+        if (!opponent || opponent.length < 3 || opponent.includes('CLUB')) continue;
+
+        const date = new Date(currentYear, month - 1, day);
+        if (date < now) {
+          date.setFullYear(currentYear + 1);
+        }
+
+        const dateStr = date.toISOString().split('T')[0];
+        const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+        matches.push({
+          id: matchId++,
+          date: dateStr,
+          opponent: opponent.toUpperCase(),
+          time: timeStr
+        });
+      } catch (e) {
+        console.error('Parse error:', e.message);
+      }
     }
 
-    const dateStr = date.toISOString().split('T')[0];
-    const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    if (matches.length > 0) {
+      console.log(`Pattern matched, found ${matches.length} matches`);
+      break;
+    }
+  }
 
-    matches.push({
-      id: matchId++,
-      date: dateStr,
-      opponent: opponent.toUpperCase(),
-      time: timeStr
-    });
+  if (matches.length === 0) {
+    console.log('No matches parsed - HTML sample:', html.substring(0, 500));
   }
 
   return matches;
