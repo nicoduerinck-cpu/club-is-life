@@ -106,15 +106,22 @@ function parseMatches(html) {
 
       fixtures.forEach((fixture, idx) => {
         try {
+          if (idx === 0) {
+            console.log('Sample fixture:', JSON.stringify(fixture).substring(0, 500));
+          }
+
           if (fixture.homeTeam && fixture.awayTeam) {
             const isHome = fixture.homeTeam.name && fixture.homeTeam.name.includes('Brugge');
             if (isHome) {
               const date = new Date(fixture.date);
               if (date > now) {
+                const opponent = fixture.awayTeam.name || fixture.awayTeam.displayName || 'Unknown';
+                console.log('Match', idx, '- Home:', fixture.homeTeam.name, 'vs', opponent);
+
                 matches.push({
                   id: matchId++,
                   date: date.toISOString().split('T')[0],
-                  opponent: fixture.awayTeam.name || 'Unknown',
+                  opponent: opponent,
                   time: String(date.getHours()).padStart(2, '0') + ':' +
                         String(date.getMinutes()).padStart(2, '0')
                 });
