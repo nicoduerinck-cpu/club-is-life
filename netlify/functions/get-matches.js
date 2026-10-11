@@ -113,7 +113,15 @@ function parseMatches(html) {
   }
 
   if (matches.length === 0) {
-    console.log('No matches parsed - HTML sample:', html.substring(0, 500));
+    // Log more details for debugging
+    const sampleStart = html.indexOf('CLUB BRUGGE');
+    if (sampleStart > -1) {
+      const sample = html.substring(Math.max(0, sampleStart - 200), sampleStart + 300);
+      console.log('Sample around "CLUB BRUGGE":', sample);
+    } else {
+      console.log('CLUB BRUGGE not found in HTML');
+      console.log('First 1000 chars:', html.substring(0, 1000));
+    }
   }
 
   return matches;
